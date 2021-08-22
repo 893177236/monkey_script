@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         网盘链接识别
 // @namespace    http://tampermonkey.net/
-// @version      1.4.6
+// @version      1.4.7
 // @description  识别网页中显示的网盘链接，目前包括百度网盘、蓝奏云网盘
-// @author       MT-戒酒的李白染
+// @author       WhiteSev
 // @include      *
 // @run-at       document-start
+// @license AGPL-3.0 或更高版本
+// @copyright 2021, whitesev (https://openuserjs.org/users/whitesev)
 // @require		 http://cdn.staticfile.org/jquery/2.1.4/jquery.min.js
 // @grant        GM_setValue
 // @grant        GM_getValue
