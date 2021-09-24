@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         网盘链接识别
 // @namespace    http://tampermonkey.net/
-// @version      1.4.7
+// @version      1.4.8
 // @description  识别网页中显示的网盘链接，目前包括百度网盘、蓝奏云网盘
-// @author       whitesev
+// @author       MT-戒酒的李白染
 // @include      *
 // @run-at       document-start
 // @license      GPL-3.0-only
@@ -550,6 +550,7 @@
 
 
     const ui = {
+        bodyWidth:"60vw",
         setCSS: function () { //加载css
             let ui_css = `
             #white-box-body{
@@ -569,9 +570,11 @@
                 background: #eae7e7;
                 z-index: 1000;
                 width: 100%;
+                min-width:130px;
                 height: 228px;
                 border-radius: inherit;
                 box-shadow: -1px 0px 10px 0px;
+                transition: all 0.45s ease;
                 
             }
             #white-box-body .home_fixed{
@@ -622,22 +625,24 @@
             .white-lanzou-icon{
                 width: 16px;
                 height: 16px;
-                margin-right:3px;
-                float:left;
+                margin: 0px 3px;
             }
 
             .white-link-isclick{
                 color:grey !important;
             }
-            .white-link-url{
-                width: 100%;
-            }
             .white-link-div{
                 display: flex;
                 align-items: center;
+                width:100%;
             }
             .white-link-img{
-                margin-left: 4px;
+                margin: 0px 4px;
+                width: 15%;
+                display: contents;
+            }
+            .white-link-url{
+                width: 85%;
             }
             .white-link-img img{
                 border-radius:5px;
@@ -655,6 +660,7 @@
             .white-setting-body{
                 display:none;
                 width: 78vw;
+                min-width:280px;
                 height: 60vh;
                 position: fixed;
                 top: 0;
@@ -738,7 +744,9 @@
                 overflow-y: auto;
                 display: flex;
             }
-            
+            .white-bd-panel-more .vt-message-body a{
+                margin: 10px 0px;
+            }
             .white-bd-panel-more .vt-message-body a:not(:last-child),
             .white-bd-panel-more-two .vt-message-body a:first-child{
                 border:none;
@@ -751,6 +759,19 @@
             var Sidebar = document.createElement("div");
             Sidebar.id = "white-float-button";
             $("#white-box-body").append(Sidebar);
+        },
+        setSidebarDefaultWidth: () => {
+            let deviceWindowWidth = window.innerWidth;
+            if (deviceWindowWidth >= 600 && deviceWindowWidth <= 800) {
+                ui.bodyWidth = "50vw";
+            } else if (deviceWindowWidth >= 800 && deviceWindowWidth <= 1000) {
+                ui.bodyWidth = "40vw";
+            } else if (deviceWindowWidth >= 1000 && deviceWindowWidth <= 1200) {
+                ui.bodyWidth = "30vw";
+            } else if (deviceWindowWidth >= 1200) {
+                ui.bodyWidth = "20vw";
+            }
+            $("#white-box-main").css("width", ui.bodyWidth);
         },
         setBoxBody: function setBoxBody() {
             var BoxBody = document.createElement("div");
@@ -774,7 +795,7 @@
             let key_name = GM_getValue("keyname");
             let key = GM_getValue("key");
             let web_url = GM_getValue("urlname");
-
+            let only_open = GM_getValue("BaiDuLinkOnlyOpen");
 
             var url_div = document.createElement("div");
             url_div.className = "white-link-div";
@@ -793,7 +814,16 @@
 
             var displayHref = surl + "提取码：" + pwd;
             labelA.href = "javascript:;";
-            if (settingenable) {
+            if(only_open){
+                labelA.onclick = function (e) {
+                    e.target.setAttribute("class", "white-link-isclick");
+                    if(pwd){
+                        GM_setClipboard(pwd);
+                    }
+                    window.open("https://pan.baidu.com/s/"+displayHref);
+                    GM_log("open ==> " + displayHref);
+                }
+            }else if (settingenable) {
                 labelA.onclick = function post(e) {
                     e.target.setAttribute("class", "white-link-isclick");
                     var temp = document.createElement("form");
@@ -815,7 +845,7 @@
                 labelA.onclick = function (e) {
                     e.target.setAttribute("class", "white-link-isclick");
                     GM_setClipboard("https://pan.baidu.com/s/" + displayHref);
-                    console.log("copy ==> " + displayHref);
+                    GM_log("copy ==> " + displayHref);
                     VtMessage_show.success("复制成功~");
                 }
             }
@@ -841,17 +871,21 @@
             url_link.onclick = function (e) {
                 e.target.setAttribute("class", "white-link-isclick");
                 let enable_lanzou_real_link = GM_getValue("LanZouRealLinkEnable");
-                if (enable_lanzou_real_link) {
-                    //开启蓝奏直链解析
+                let only_open = GM_getValue("LanZouLinkOnlyOpen");
+                if(only_open){
+                    // 仅打开
+                    if(skey){
+                        GM_setClipboard(skey);
+                    }
+                    window.open(GM_rexp.lanzou + url);
+
+                }else if (enable_lanzou_real_link) {
+                    // 开启蓝奏直链解析
                     // LanZouUrlParsing(url, skey)
                     LanzouLinkParse(url, skey);
                 } else {
-                    //否则单纯跳转
-                    if (skey) {
-                        GM_setClipboard(skey);
-
-                    }
-                    window.open(GM_rexp.lanzou + url);
+                    // 复制到剪贴板
+                    GM_setClipboard(GM_rexp.lanzou + url+"密码:"+skey);
                 }
 
 
@@ -864,6 +898,8 @@
             $(".home_fixed").append(url_div);
             $(url_div).find(".white-link-img").append(img_lanzou_icon);
             $(url_div).find(".white-link-url").append(url_link);
+
+
         },
         setCloseBotton: function setCloseBotton() {
             var Button = document.createElement("div");
@@ -880,29 +916,26 @@
             })
         },
         setSidebar_Event: function setSidebar_Event() {
-            document.getElementById("white-float-button").onclick = function () {
+            $("#white-float-button").click(()=>{
                 $("#white-float-button").hide();
                 $("#white-box-main").show();
-                let deviceWindowWidth = window.innerWidth;
-                let setSidebarWidth = "60vw";
-                if (deviceWindowWidth >= 600 && deviceWindowWidth <= 800) {
-                    setSidebarWidth = "50vw";
-                } else if (deviceWindowWidth >= 800 && deviceWindowWidth <= 1000) {
-                    setSidebarWidth = "40vw";
-                } else if (deviceWindowWidth >= 1000 && deviceWindowWidth <= 1200) {
-                    setSidebarWidth = "30vw";
-                } else if (deviceWindowWidth >= 1200) {
-                    setSidebarWidth = "20vw";
-                }
-                $("#white-box-body").css("width", setSidebarWidth);
-            }
+                $("#white-box-body").css("right",ui.bodyWidth);
+            })
         },
         setCloseBotton_Event: function setCloseBotton_Event() {
-            $(".guanbi").bind("click", function () {
-                // $("#white-box-main").hide();
-                $("#white-box-body").css("width", "0px");
-                $("#white-float-button").show();
-            }) //关闭按钮点击事件
+            $(".guanbi").click(()=>{
+               // $("#white-box-main").hide();
+               $("#white-box-body").css("right", "0px");
+                setTimeout(()=>{
+                    $("#white-float-button").show()
+                },450);
+               
+           }) //关闭按钮点击事件
+            // $(".guanbi").bind("click", function () {
+            //     // $("#white-box-main").hide();
+            //     $("#white-box-body").css("width", "0px");
+            //     $("#white-float-button").show();
+            // }) //关闭按钮点击事件
         },
         setSettingBody: function () { //配置界面
             let settingbody = document.createElement("div");
@@ -957,14 +990,16 @@
                         <input type="text" class="bd-link-key" value="` + key + `">
                     </div>
                     <div class="bd-setting">
-                        
                         <input type="checkbox" class="bd-key-enable">
                         <label>启用密钥</label>
                     </div>
                     <div class="bd-setting">
-                        
                         <input type="checkbox" class="bd-only-copy">
                         <label>启用配置</label>
+                    </div>
+                    <div class="bd-setting">
+                        <input type="checkbox" class="bd-only-open">
+                        <label>仅打开</label>
                     </div>
                 </details>
                 <details class="white-link-setting-menu" open>
@@ -972,6 +1007,10 @@
                     <div class="bd-setting">
                         <input type="checkbox" class="bd-link-sure-lanzou">
                         <label>开启蓝奏直链获取</label>
+                    </div>
+                    <div class="bd-setting">
+                        <input type="checkbox" class="bd-link-lanzou-only-open">
+                        <label>仅打开</label>
                     </div>
                 </details>
             </div>
@@ -993,7 +1032,12 @@
             if (GM_getValue("LanZouRealLinkEnable") == 1) {
                 document.getElementsByClassName("bd-link-sure-lanzou")[0].checked = true;
             }
-
+            if (GM_getValue("BaiDuLinkOnlyOpen") == 1) {
+                document.getElementsByClassName("bd-only-open")[0].checked = true;
+            }
+            if (GM_getValue("LanZouLinkOnlyOpen") == 1) {
+                document.getElementsByClassName("bd-link-lanzou-only-open")[0].checked = true;
+            }
         },
         setSettingBodyEvent: function () { //配置界面点击事件
             $(".lbl-close").click(function () {
@@ -1036,6 +1080,20 @@
                     GM_setValue("LanZouRealLinkEnable", 0);
                 }
 
+            })
+            $(".bd-only-open").on("change",()=>{
+                if (document.getElementsByClassName("bd-only-open")[0].checked == true) {
+                    GM_setValue("BaiDuLinkOnlyOpen", 1);
+                } else {
+                    GM_setValue("BaiDuLinkOnlyOpen", 0);
+                }
+            })
+            $(".bd-link-lanzou-only-open").on("change",()=>{
+                if (document.getElementsByClassName("bd-link-lanzou-only-open")[0].checked == true) {
+                    GM_setValue("LanZouLinkOnlyOpen", 1);
+                } else {
+                    GM_setValue("LanZouLinkOnlyOpen", 0);
+                }
             })
         }
     }
@@ -1548,33 +1606,31 @@
     }
 
 
-    var white_link_identify = {   
-        identifying:false, //识别中...
-        hasIndentify:false, //有识别到的链接
-        iscreate:false //已创建过界面
-    }
+
     function main_start() {
         let get_Website_BaiduLink = getWebsiteBaiduLink();
         let get_website_LanzouLink = getWebsiteLanzouLink();
+        let get_flag = false;
         let bd_dict = null;
         let lanzou_dict = null;
         if (get_Website_BaiduLink != null) {
-            white_link_identify.hasIndentify = true;
+            get_flag = true;
             // BaiduLinkDictionary(get_Website_BaiduLink);
             // bd_dict = window.dictionary;
             bd_dict = LinkDictionary(get_Website_BaiduLink, GM_rexp.bd_key, GM_rexp.bd_pwd, GM_rexp.bd_pwd_number);
 
         }
         if (get_website_LanzouLink != null) {
-            white_link_identify.hasIndentify = true;
+            get_flag = true;
             // lanzou_dict = LanZouDictionary(get_website_LanzouLink);
             lanzou_dict = LinkDictionary(get_website_LanzouLink, GM_rexp.lanzou_key, GM_rexp.lanzou_pwd, GM_rexp.lanzou_pwd_number);
 
         }
-        if (white_link_identify.hasIndentify) {
+        if (get_flag) {
             ui.setCSS();
             ui.setBoxBody();
             ui.setSidebar();
+            ui.setSidebarDefaultWidth();
             ui.setSidebar_Event();
             ui.setLinkLayout();
             ui.setSettingBody();
@@ -1597,57 +1653,7 @@
             ui.setCloseBotton_Event();
         }
     }
-    function main_start() {
-        $("body").bind("DOMNodeInserted",function(){
-            if(white_link_identify.identifying == false){
-                console.log("识别");
-                let get_Website_BaiduLink = getWebsiteBaiduLink();
-                let get_website_LanzouLink = getWebsiteLanzouLink();
-                let bd_dict = null;
-                let lanzou_dict = null;
-                if (get_Website_BaiduLink != null) {
-                    white_link_identify.hasIndentify = true;
-                    bd_dict = LinkDictionary(get_Website_BaiduLink, GM_rexp.bd_key, GM_rexp.bd_pwd, GM_rexp.bd_pwd_number);
-                }
-                if (get_website_LanzouLink != null) {
-                    white_link_identify.hasIndentify = true;
-                    lanzou_dict = LinkDictionary(get_website_LanzouLink, GM_rexp.lanzou_key, GM_rexp.lanzou_pwd, GM_rexp.lanzou_pwd_number);
-                }
-                if(white_link_identify.hasIndentify && white_link_identify.iscreate == false){
-                    //识别到链接并且尚未创建界面
-                    ui.setCSS();
-                    ui.setBoxBody();
-                    ui.setSidebar();
-                    ui.setSidebar_Event();
-                    ui.setLinkLayout();
-                    ui.setSettingBody();
-                    ui.setSettingBodyEvent();
-                    ui.setCloseBotton();
-                    ui.setCloseBotton_Event();
-                    white_link_identify.iscreate = true;
-                }else{
-                    if (bd_dict != null) {
-                        for (let key in bd_dict.getItems()) {
-                            console.log("white-bd: " + key + " ===>> " + bd_dict.get(key));
-                            ui.setLinkLayoutAddHref(key, bd_dict.get(key));
-                        };
-                    }
-                    if (lanzou_dict != null) {
-                        console.log(lanzou_dict.getItems());
-                        for (let key in lanzou_dict.getItems()) {
-                            console.log("white-lanzou: " + key + " ===>> " + lanzou_dict.get(key));
-                            ui.setLanzouLinkLayoutAddHref(key, lanzou_dict.get(key));
-                        };
-                    }
-                    
-                }
-                white_link_identify.identifying = false;
-            }else{
-                console.log("已经在识别中，禁止重复运行");
-            }
-        })
-    }
-    //弃
+
     function panDownload() { //获取使用panDownload源码的网站的解析链接
         let Pandownload_gethref_info = $(".alert.alert-primary").text();
         let Pandownload_getDown_url = Pandownload_gethref_info.match(/https:\/\/.*/g);
@@ -1711,7 +1717,6 @@
 
     }
 
-    //弃
     function panDownWebsite() { //新的解析网站
         if (location.href.match(/pan.(ednovas.xyz|kdbaidu.com)\/\?download/g)) {
             loadCss("https://cdn.jsdelivr.net/gh/893177236/Monkey_script/Message.css", "css");
@@ -1750,7 +1755,6 @@
         }
     }
 
-    //弃
     function panDownCheckUpdateTime() { //Pandown子网站的key更新时间
         let GM_myDate = new Date;
         let GM_year = GM_myDate.getFullYear(); //获取当前年
@@ -1775,7 +1779,6 @@
         }
     }
 
-    //弃
     function panDownUpdateKey() { //Pandwon子网站更新key
         GM_xmlhttpRequest({
             method: "GET",
@@ -1803,7 +1806,7 @@
             // panDownWebsite();
         });
     } catch (err) {
-        console.log("百度网盘链接识别出错：",err)
+        console.log("百度网盘链接识别出错：" + err)
     }
 
 })();
